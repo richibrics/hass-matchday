@@ -1,13 +1,9 @@
 from requests import Request, Session
 from consts import *
-import brotli
 
 def GetFromLink(url, session):
-    # print(url)
     # return dict from request's json response
-    headers = {'accept': '*/*',
-               'user-agent': 'SofascoreApp/6.6.32 (com.SofaScore.iOS; build:414; iOS 14.0.0) Alamofire/4.9.1 deb', 'accept-language': 'it-it', 'accept-encoding': 'gzip, deflate, br', 'cache-control': 'max-age=0'}
-    req = Request('GET', url, headers=headers)
+    req = Request('GET', url)
     prepped = session.prepare_request(req)
     response = session.send(prepped)
     if response.status_code == 200:
