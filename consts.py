@@ -13,3 +13,6 @@ TOURNAMENT_NEXTEVENTS_URL = "https://www.thesportsdb.com/api/v1/json/1/eventsnex
 STATUS_NOTPLAYED = 0
 # STATUS_INPROGRESS = 2 # DB without live results
 STATUS_PLAYED = 1
+
+PERIOD_LAST=0
+PERIOD_NEXT=1

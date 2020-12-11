@@ -1,5 +1,6 @@
 from requests import Request, Session
 from consts import *
+import datetime
 
 def GetFromLink(url, session):
     # return dict from request's json response
@@ -15,74 +16,99 @@ def GetFromLink(url, session):
 
 class Team:
     def __init__(self, id, session):
+        # TODO: Add config for: Use alternative name
         self.events = []
+        self.id=id
         self.session = session
-        self.GetData(id)
-        self.name = self.info['name']
-        print(self.name+"\n")
+        if(self.GetData()==-1):
+            raise Exception("Can't initialize " + str(id) + " tournament")
+        self.name = self.info['strTeam']
+        self.alternativeName = self.info['strAlternate']
+        print(self.name)
         self.ParseEvents()
 
-    def GetData(self, id):
-        # Get Team info from INFO link
-        self.info = GetFromLink(TEAM_DETAILS_URL.format(id), self.session)
-        self.eventsData = GetFromLink(
-            TEAM_LASTNEXT_URL.format(id), self.session)
+    def GetData(self):
+        try:
+            # Get Team info from INFO link
+            self.info = self.GetFromLink(TEAM_DETAILS_URL)['teams'][0]
+            self.lastEventsData = self.GetFromLink(TEAM_LASTEVENTS_URL)
+            self.nextEventsData = self.GetFromLink(TEAM_NEXTEVENTS_URL)
+            return 0
+        except:
+            print("Data not found for team id " + str(id))
+            return -1
+
+    def GetFromLink(self,notFormattedUrl):
+        return GetFromLink(
+            notFormattedUrl.format(self.id), self.session)
 
     def ParseEvents(self):
-        for tournament in self.eventsData['last']['tournaments']:
-            for event in tournament['events']:
-                # Save only X last matches
-                self.events.append(Event(event))
-        for tournament in self.eventsData['next']['tournaments']:
-            for event in tournament['events']:
-                # Should skip some matches, keep only the last and the x future events (live included)
-                self.events.append(Event(event))
+        for event in self.lastEventsData['results']:
+                self.events.append(Event(event,PERIOD_LAST))
+        for event in self.nextEventsData['events']:
+                self.events.append(Event(event,PERIOD_NEXT))
 
 
 class Tournament:
     def __init__(self, id, session):
+        # TODO: Add config for: Use alternative name
         self.events = []
+        self.id=id
         self.session = session
-        self.GetData(id)
-        self.name = self.eventsData['tournaments'][0]['tournament']['name']
+        if(self.GetData()==-1):
+            raise Exception("Can't initialize " + str(id) + " tournament")
+        self.name = self.info['strLeague']
+        self.alternativeName = self.info['strLeagueAlternate']
         print(self.name)
         self.ParseEvents()
 
-    def GetData(self, id):
+    def GetData(self):
         # Get Team info from INFO link
-        #self.info = GetFromLink(TOURNAMENT_INFO_URL.format(id))
-        self.eventsData = GetFromLink(
-            TOURNAMENT_EVENTS_URL.format(id), self.session)
+        try:
+            self.info = self.GetFromLink(TOURNAMENT_DETAILS_URL)['leagues'][0]
+            self.lastEventsData = self.GetFromLink(TOURNAMENT_LASTEVENTS_URL)
+            self.nextEventsData = self.GetFromLink(TOURNAMENT_LASTEVENTS_URL)
+            return 0
+        except:
+            print("Data not found for league id " + str(id))
+            return -1
 
     def ParseEvents(self):
-        for event in self.eventsData['tournaments'][0]['events']:
-            # Should skip some matches
-            self.events.append(Event(event))
+        for event in self.lastEventsData['events']:
+                self.events.append(Event(event,PERIOD_LAST))
+        for event in self.nextEventsData['events']:
+                self.events.append(Event(event,PERIOD_NEXT))
 
+    def GetFromLink(self,notFormattedUrl):
+        return GetFromLink(
+            notFormattedUrl.format(self.id), self.session)
 
 class Event:
-    def __init__(self, _dict):
+    def __init__(self, _dict,period):
         self.data = _dict
-        self.teamHome = self.data['homeTeam']['name']
-        self.teamAway = self.data['awayTeam']['name']
-        if 'display' in self.data['homeScore']:
-            self.goalHome = self.data['homeScore']['display']
-            self.goalAway = self.data['awayScore']['display']
+        self.period=period
+        self.id=self.data['idEvent']
+        self.teamHome = self.data['strHomeTeam']
+        self.teamAway = self.data['strAwayTeam']
+        self.GetDatetime()
+        if period == PERIOD_LAST: # Take the result
+            self.goalHome = self.data['intHomeScore']
+            self.goalAway = self.data['intAwayScore']
         else:
             self.goalHome = None
             self.goalAway = None
-        if self.data['status']['type'] == "finished":
-            self.status = STATUS_PLAYED
-        elif self.data['status']['type'] == "inprogress":
-            self.status = STATUS_INPROGRESS
-        else:
-            self.status = STATUS_NOTPLAYED
         self.Print()
 
     def Print(self):
         stringa = "Match: " + self.teamHome + " - " + self.teamAway
-        if self.status == STATUS_NOTPLAYED:
+        if self.period == PERIOD_NEXT:
             stringa += " | not played"
         else:
             stringa += " | " + str(self.goalHome) + " - " + str(self.goalAway)
         print(stringa)
+
+    def GetDatetime(self):
+        # Time is in GMT
+        timestamp=self.data['dateEvent']+' '+self.data['strTime']
+        print(timestamp)
+        #self.datetime=datetime.datetime.strptime(timestamp,"%Y-%m-%d %H:%M")
