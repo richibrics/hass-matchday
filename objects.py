@@ -1,5 +1,5 @@
 from requests import Request, Session
-from consts import *
+from .consts import *
 import datetime
 
 
@@ -22,10 +22,10 @@ class Team:
         self.id = id
         self.session = session
         if(self.GetData() == -1):
-            raise Exception("Can't initialize " + str(id) + " tournament")
+            raise Exception("Can't initialize " + str(id) + " team")
         self.name = self.info['strTeam']
         self.alternativeName = self.info['strAlternate']
-        print(self.name)
+        #print(self.name)
         self.ParseEvents()
 
     def GetData(self):
@@ -39,6 +39,12 @@ class Team:
             print("Data not found for team id " + str(id))
             return -1
 
+    def Update(self):
+        self.events.clear()
+        if(self.GetData() == -1):
+            raise Exception("Can't get data for " + str(id) + " team")
+        self.ParseEvents()
+
     def GetFromLink(self, notFormattedUrl):
         return GetFromLink(
             notFormattedUrl.format(self.id), self.session)
@@ -46,6 +52,7 @@ class Team:
     def ParseEvents(self):
         for event in self.lastEventsData['results']:
             self.events.append(Event(event, PERIOD_LAST))
+        self.events.reverse()
         for event in self.nextEventsData['events']:
             self.events.append(Event(event, PERIOD_NEXT))
 
@@ -53,6 +60,7 @@ class Team:
         fixtures = []
         for event in self.events:
             fixtures.append(event.ReturnInfo())
+        return fixtures
 
 class Tournament:
     def __init__(self, id, session):
@@ -72,15 +80,24 @@ class Tournament:
         try:
             self.info = self.GetFromLink(TOURNAMENT_DETAILS_URL)['leagues'][0]
             self.lastEventsData = self.GetFromLink(TOURNAMENT_LASTEVENTS_URL)
-            self.nextEventsData = self.GetFromLink(TOURNAMENT_LASTEVENTS_URL)
+            self.nextEventsData = self.GetFromLink(TOURNAMENT_NEXTEVENTS_URL)
             return 0
         except:
             print("Data not found for league id " + str(id))
             return -1
 
+
+    def Update(self):
+        self.events.clear()
+        if(self.GetData() == -1):
+            raise Exception("Can't get data for " + str(id) + " tournament")
+        self.ParseEvents()
+
+
     def ParseEvents(self):
         for event in self.lastEventsData['events']:
             self.events.append(Event(event, PERIOD_LAST))
+        self.events.reverse()
         for event in self.nextEventsData['events']:
             self.events.append(Event(event, PERIOD_NEXT))
 
@@ -93,6 +110,7 @@ class Tournament:
         fixtures = []
         for event in self.events:
             fixtures.append(event.ReturnInfo())
+        return fixtures
 
 
 class Event:
@@ -128,5 +146,11 @@ class Event:
         fixture = {"match": None, "datetime": None, "result": None}
         fixture['match'] = self.teamHome+" - " + self.teamAway
         fixture['datetime'] = self.datetime
-        fixture['result'] = self.goalHome+" - " + self.goalAway
+        if self.period==PERIOD_LAST:    
+            try:
+                fixture['result'] = self.goalHome+" - " + self.goalAway
+            except:
+                fixture['result'] = "  -  "
+        else: 
+            fixture['result'] = "  -  "
         return fixture

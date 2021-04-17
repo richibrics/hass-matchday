@@ -16,3 +16,7 @@ STATUS_PLAYED = 1
 
 PERIOD_LAST=0
 PERIOD_NEXT=1
+
+# Used to pass the Id to the sensor and recognise the type
+TYPE_TEAM=0
+TYPE_TOURNAMENT=1
